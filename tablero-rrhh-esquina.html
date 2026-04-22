@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero RRHH · Municipio de Esquina</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --azul:    #1B3A5C;
+  --azul2:   #2E6DA4;
+  --azul-lt: #EBF4FF;
+  --verde:   #2E7D52;
+  --verde-lt:#F0FFF4;
+  --naranja: #C05621;
+  --naranja-lt:#FFFAF0;
+  --rojo:    #C53030;
+  --rojo-lt: #FFF5F5;
+  --gris:    #718096;
+  --gris-lt: #F7FAFC;
+  --borde:   #E2E8F0;
+  --texto:   #1A202C;
+  --texto2:  #4A5568;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #EDF2F7;
+  color: var(--texto);
+  min-height: 100vh;
+}
+
+/* ── Top bar ── */
+.topbar {
+  background: var(--azul);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 14px; }
+.topbar-dot { width: 8px; height: 8px; background: #68D391; border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.topbar-title { font-size: 14px; font-weight: 600; color: #fff; }
+.topbar-sub { font-size: 12px; color: #8AAECC; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.last-update { font-size: 11.5px; color: #8AAECC; }
+.btn-refresh {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.btn-refresh:hover { background: rgba(255,255,255,0.2); }
+.btn-refresh:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Layout ── */
+.page { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+
+/* ── Loading / Error ── */
+.state-msg {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--gris);
+}
+.state-msg .ico { font-size: 32px; margin-bottom: 12px; }
+.state-msg p { font-size: 14px; }
+.state-msg.error { color: var(--rojo); }
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #E2E8F0;
+  border-top-color: var(--azul2);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── KPI cards ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 1.25rem;
+}
+.kpi {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.kpi.total::before  { background: var(--azul2); }
+.kpi.planta::before { background: var(--verde); }
+.kpi.quincenal::before { background: var(--naranja); }
+.kpi.sin-desig::before { background: var(--rojo); }
+
+.kpi-label { font-size: 11px; font-weight: 600; color: var(--gris); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+.kpi-value { font-size: 32px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+.kpi.total .kpi-value   { color: var(--azul); }
+.kpi.planta .kpi-value  { color: var(--verde); }
+.kpi.quincenal .kpi-value { color: var(--naranja); }
+.kpi.sin-desig .kpi-value { color: var(--rojo); }
+.kpi-detail { font-size: 12px; color: var(--gris); }
+
+/* ── Row layouts ── */
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.25rem; }
+.row-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 1.25rem; }
+
+/* ── Cards ── */
+.card {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gris);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--borde);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-title span { font-weight: 400; font-size: 11px; color: #A0AEC0; text-transform: none; letter-spacing: 0; }
+
+/* ── Cobertura ── */
+.cobertura-wrap { display: flex; align-items: center; gap: 20px; margin-bottom: 16px; }
+.cobertura-ring { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+.cobertura-ring canvas { width: 80px !important; height: 80px !important; }
+.cobertura-pct {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px; font-weight: 700; color: var(--azul);
+}
+.cobertura-info { flex: 1; }
+.cobertura-info p { font-size: 13px; color: var(--texto2); margin-bottom: 4px; }
+.cobertura-info strong { color: var(--texto); }
+.cob-bar-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+.cob-bar-item { display: flex; align-items: center; gap: 8px; }
+.cob-bar-nombre { font-size: 11.5px; color: var(--texto2); width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.cob-bar-track { flex: 1; height: 6px; background: #EDF2F7; border-radius: 99px; }
+.cob-bar-fill { height: 6px; border-radius: 99px; background: var(--azul2); transition: width 0.4s; }
+.cob-bar-count { font-size: 11px; font-weight: 600; color: var(--azul); min-width: 20px; text-align: right; }
+
+/* ── Chart containers ── */
+.chart-wrap { position: relative; height: 220px; }
+
+/* ── Tabla quincenales ── */
+.filtros { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filtro-input {
+  font-size: 12.5px; font-family: inherit;
+  border: 1px solid var(--borde); border-radius: 6px;
+  padding: 6px 10px; background: #fff; color: var(--texto);
+  flex: 1; min-width: 140px;
+}
+.filtro-select {
+  font-size: 12.5px; font-family: inherit;
+  border: 1px solid var(--borde); border-radius: 6px;
+  padding: 6px 10px; background: #fff; color: var(--texto);
+  appearance: none; min-width: 140px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23718096'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+.filtro-count { font-size: 12px; color: var(--gris); white-space: nowrap; }
+
+.tabla-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th {
+  text-align: left; padding: 8px 10px;
+  font-size: 11px; font-weight: 600; color: var(--gris);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  border-bottom: 1.5px solid var(--borde);
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid #F7FAFC; transition: background 0.1s; }
+tbody tr:hover { background: var(--gris-lt); }
+tbody td { padding: 9px 10px; color: var(--texto2); vertical-align: middle; }
+tbody td:first-child { color: var(--texto); font-weight: 500; }
+.badge {
+  display: inline-block; font-size: 10.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px; white-space: nowrap;
+}
+.b-planta     { background: #C6F6D5; color: #22543D; }
+.b-contratado { background: #BEE3F8; color: #1A365D; }
+.b-quincenal  { background: #FEEBC8; color: #7B341E; }
+.b-ns         { background: #EDF2F7; color: #4A5568; }
+.b-si   { background: #C6F6D5; color: #22543D; }
+.b-no   { background: #FED7D7; color: #742A2A; }
+.b-nosabe { background: #EDF2F7; color: #4A5568; }
+.empty-row td { text-align: center; color: #A0AEC0; padding: 2rem; font-size: 13px; }
+
+/* ── Areas no relevadas ── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 11.5px; padding: 3px 10px;
+  border-radius: 99px; border: 1px solid var(--borde);
+  background: var(--gris-lt); color: var(--texto2);
+}
+.chip.relevada { background: #C6F6D5; color: #22543D; border-color: #9AE6B4; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .row-2, .row-3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 540px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .topbar { padding: 0 1rem; }
+  .page { padding: 1rem 0.75rem 3rem; }
+  .cob-bar-nombre { width: 100px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-dot" id="status-dot"></div>
+    <div>
+      <div class="topbar-title">Tablero de Relevamiento de Personal</div>
+      <div class="topbar-sub">Municipio de Esquina · RRHH / CEM</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="last-update" id="last-update">Cargando...</span>
+    <button class="btn-refresh" id="btn-refresh" onclick="cargarDatos()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="page" id="page">
+  <div class="state-msg" id="loading">
+    <div class="spinner"></div>
+    <p>Cargando datos desde Google Sheets...</p>
+  </div>
+</div>
+
+<script>
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbwJW_Xipq4_xIADDuMp_iVArdiUfGSNZAaxk7fTor6bjopUbQA5NcCtmsjOkgFle03Vkg/exec';
+
+const TODAS_LAS_AREAS = [
+  'Acción Social','Administración y Mantenimiento','Adultos Mayores','Asistencia Social',
+  'Bromatología e Higiene y Comercio','C.I.C.','Cementerio','Centro Asistencial',
+  'Centro Estadístico','Comercio','Compras y Suministros','Cultura','Defensa Civil',
+  'Deportes','Discapacidad','Educación','Egresos','Empleo','Familia, la Mujer y el Niño',
+  'Farmacia','Gobierno','Hacienda','Higiene Urbana','Informática','Ingresos','Inspección',
+  'Intendencia','Juventud','Laboratorio','Matadero','Medio Ambiente',
+  'Obras Públicas y Vivienda Municipal','Obras y Servicios Públicos','Parques y Paseos',
+  'Personal','Planificación Estratégica','Prensa','Producción','Salud Pública',
+  'Salud Pública y Acción Social','Secretaría General','Servicios Públicos','Tesorería',
+  'Tránsito','Turismo','Zoonosis'
+];
+
+const AREA_MAP = {
+  'Accion Social':                            'Acción Social',
+  'Acción Social':                            'Acción Social',
+  'Accion Social/C.I.C. ':                   'Acción Social',
+  'Accion Social/C.I.C.':                    'Acción Social',
+  'Accion Social/Merendero':                 'Acción Social',
+  'Accion Social/Arroyo Vega':               'Acción Social',
+  'Accion Social/Territorio':                'Acción Social',
+  'Salud/Adultos Mayores':                   'Adultos Mayores',
+  'Palacio Municipal/Comercio':              'Bromatología e Higiene y Comercio',
+  'Comercio':                                'Bromatología e Higiene y Comercio',
+  'C.I.C.':                                  'C.I.C.',
+  'Cementerio':                              'Cementerio',
+  'Cementerio/Sereno':                       'Cementerio',
+  'Salud/Centro Asistencial':                'Centro Asistencial',
+  'Direccion de Cultura':                    'Cultura',
+  'Defensa Civil':                           'Defensa Civil',
+  'Direccion de Deportes':                   'Deportes',
+  'Salud/Discapacidad':                      'Discapacidad',
+  'Palacio Municipal/Oficina de empleo':     'Empleo',
+  'Salud/Mujer y el Niño':                  'Familia, la Mujer y el Niño',
+  'Palacio Municipal/Secretaria de Gobierno':'Gobierno',
+  'Basural/Custodia':                        'Higiene Urbana',
+  'Direccion de Juventud':                   'Juventud',
+  'Matadero':                                'Matadero',
+  'Medio Ambiente':                          'Medio Ambiente',
+  'Obras Publicas':                          'Obras Públicas y Vivienda Municipal',
+  'Corralon ll':                             'Obras y Servicios Públicos',
+  'Corralon ll/Alumbrado':                   'Obras y Servicios Públicos',
+  'Red de Aguas':                            'Obras y Servicios Públicos',
+  'Plaza Pescio':                            'Parques y Paseos',
+  'Plaza 25 de mayo':                        'Parques y Paseos',
+  'Plaza 25 de Mayo':                        'Parques y Paseos',
+  'Plaza Bello Horizonte':                   'Parques y Paseos',
+  'Plaza 9 de Julio':                        'Parques y Paseos',
+  'Plaza':                                   'Parques y Paseos',
+  'Planificacion Estrategica':               'Planificación Estratégica',
+  'Prensa y Difusion':                       'Prensa',
+  'Direccion de Produccion':                 'Producción',
+  'Direccion de Produccion/Tractorista':     'Producción',
+  'Salud':                                   'Salud Pública',
+  'Salud/SUMAR':                             'Salud Pública',
+  'Salud/Administrativa':                    'Salud Pública',
+  'Salud/Chofer':                            'Salud Pública',
+  'Transito':                                'Tránsito',
+  'Seguridad Urbana y Vial':                 'Tránsito',
+  'Direccion de Turismo':                    'Turismo',
+  'Palacio Municipal/Perrera':               'Zoonosis',
+};
+
+function normalizarArea(raw) {
+  if (!raw) return null;
+  const t = raw.trim().replace(/\\#N\/A/g,'').replace(/#N\/A/g,'').trim();
+  if (!t) return null;
+  if (AREA_MAP[t]) return AREA_MAP[t];
+  if (TODAS_LAS_AREAS.includes(t)) return t;
+  return null; // sin clasificar
+}
+
+let chartDonut = null;
+let chartBarras = null;
+let allRows = [];
+let filteredRows = [];
+
+
+async function cargarDatos() {
+  const btn = document.getElementById('btn-refresh');
+  const dot = document.getElementById('status-dot');
+  btn.disabled = true;
+  btn.textContent = '↻ Actualizando...';
+  dot.style.background = '#ECC94B';
+
+  try {
+    const res = await fetch(APPS_URL + '?t=' + Date.now());
+    const data = await res.json();
+    if (!data.ok) throw new Error('Respuesta inválida');
+    allRows = data.rows || [];
+    renderDashboard(allRows);
+    dot.style.background = '#68D391';
+    document.getElementById('last-update').textContent =
+      'Actualizado: ' + new Date().toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    dot.style.background = '#FC8181';
+    document.getElementById('page').innerHTML = `
+      <div class="state-msg error">
+        <div class="ico">⚠</div>
+        <p>No se pudo conectar con Google Sheets.</p>
+        <p style="margin-top:6px;font-size:13px;">Verificá que el Apps Script esté publicado correctamente y volvé a intentar.</p>
+        <button onclick="cargarDatos()" style="margin-top:16px;padding:8px 20px;background:var(--azul);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-family:inherit;">Reintentar</button>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Actualizar';
+  }
+}
+
+function renderDashboard(rows) {
+  // ── Cálculos ──
+  const total = rows.length;
+  const byTipo = { 'Planta permanente':0, 'Contratado':0, 'Quincenal':0, 'No sabe':0 };
+  const byArea = {};
+  let sinDesig = 0;
+
+  const sinClasificar = {};
+  rows.forEach(r => {
+    const tipo = r['Tipo contratación'] || 'No sabe';
+    if (byTipo[tipo] !== undefined) byTipo[tipo]++; else byTipo['No sabe']++;
+    const areaNorm = normalizarArea(r['Área'] || '');
+    if (areaNorm) {
+      byArea[areaNorm] = (byArea[areaNorm] || 0) + 1;
+    } else {
+      const rawArea = (r['Área'] || 'Sin área').trim() || 'Sin área';
+      sinClasificar[rawArea] = (sinClasificar[rawArea] || 0) + 1;
+    }
+    if ((r['Tiene designación'] || '').toLowerCase() === 'no') sinDesig++;
+  });
+
+  const areasRelevadas = Object.keys(byArea);
+  const pctCobertura = total === 0 ? 0 : Math.round((areasRelevadas.length / TODAS_LAS_AREAS.length) * 100);
+
+  // ── Render ──
+  const page = document.getElementById('page');
+  page.innerHTML = `
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi total">
+        <div class="kpi-label">Total relevados</div>
+        <div class="kpi-value">${total}</div>
+        <div class="kpi-detail">${areasRelevadas.length} área${areasRelevadas.length!==1?'s':''} con datos</div>
+      </div>
+      <div class="kpi planta">
+        <div class="kpi-label">Planta permanente</div>
+        <div class="kpi-value">${byTipo['Planta permanente']}</div>
+        <div class="kpi-detail">${total ? Math.round(byTipo['Planta permanente']/total*100) : 0}% del total</div>
+      </div>
+      <div class="kpi quincenal">
+        <div class="kpi-label">Quincenales</div>
+        <div class="kpi-value">${byTipo['Quincenal']}</div>
+        <div class="kpi-detail">${byTipo['Contratado']} contratado${byTipo['Contratado']!==1?'s':''} también</div>
+      </div>
+      <div class="kpi sin-desig">
+        <div class="kpi-label">Sin designación</div>
+        <div class="kpi-value">${sinDesig}</div>
+        <div class="kpi-detail">Requieren atención</div>
+      </div>
+    </div>
+
+    <!-- Fila: Cobertura + Donut -->
+    <div class="row-2">
+      <div class="card">
+        <div class="card-title">Cobertura del relevamiento <span>${areasRelevadas.length} de ${TODAS_LAS_AREAS.length} áreas</span></div>
+        <div class="cobertura-wrap">
+          <div class="cobertura-ring">
+            <canvas id="chartCobertura"></canvas>
+            <div class="cobertura-pct">${pctCobertura}%</div>
+          </div>
+          <div class="cobertura-info">
+            <p><strong>${areasRelevadas.length}</strong> áreas con al menos un trabajador registrado</p>
+            <p style="margin-top:4px;">${TODAS_LAS_AREAS.length - areasRelevadas.length} áreas pendientes de relevamiento</p>
+          </div>
+        </div>
+        <div class="cob-bar-list" id="cob-bar-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Distribución por tipo de contratación</div>
+        <div class="chart-wrap"><canvas id="chartDonut"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Fila: Barras por área -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="card-title">Trabajadores por área <span>solo áreas relevadas</span></div>
+      <div class="chart-wrap" style="height:260px;"><canvas id="chartBarras"></canvas></div>
+    </div>
+
+    <!-- Tabla trabajadores -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="card-title">Registro completo de trabajadores</div>
+      <div class="filtros">
+        <input class="filtro-input" id="f-nombre" placeholder="Buscar nombre..." oninput="filtrarTabla()">
+        <select class="filtro-select" id="f-area" onchange="filtrarTabla()">
+          <option value="">Todas las áreas</option>
+          ${areasRelevadas.sort().map(a => `<option>${a}</option>`).join('')}
+        </select>
+        <select class="filtro-select" id="f-tipo" onchange="filtrarTabla()">
+          <option value="">Todos los tipos</option>
+          <option>Planta permanente</option>
+          <option>Contratado</option>
+          <option>Quincenal</option>
+          <option>No sabe</option>
+        </select>
+        <select class="filtro-select" id="f-desig" onchange="filtrarTabla()">
+          <option value="">Toda designación</option>
+          <option value="Sí">Con designación</option>
+          <option value="No">Sin designación</option>
+        </select>
+        <span class="filtro-count" id="filtro-count">${total} trabajadores</span>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Apellido y nombre</th>
+              <th>Área</th>
+              <th>Tipo</th>
+              <th>Designación</th>
+              <th>Función</th>
+              <th>Turno</th>
+              <th>Días</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Áreas no relevadas -->
+    <div class="card">
+      <div class="card-title">Estado de cobertura por área</div>
+      <div class="chips" id="chips-areas"></div>
+    </div>
+
+    <!-- Sin clasificar -->
+    <div class="card" id="sin-clasificar-card" style="margin-top:12px;">
+      <div class="card-title">Registros sin área clasificada <span>menciones que no coinciden con ningún área del organigrama</span></div>
+      <div class="chips" id="sin-clasificar-list"></div>
+    </div>
+  `;
+
+  // ── Gráfico cobertura (donut pequeño) ──
+  const ctxCob = document.getElementById('chartCobertura').getContext('2d');
+  new Chart(ctxCob, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [areasRelevadas.length, TODAS_LAS_AREAS.length - areasRelevadas.length],
+        backgroundColor: ['#2E6DA4','#E2E8F0'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      cutout: '72%', responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+
+  // ── Barras cobertura por área ──
+  const cobList = document.getElementById('cob-bar-list');
+  const maxW = Math.max(...Object.values(byArea));
+  const areasOrdenadas = Object.entries(byArea).sort((a,b) => b[1]-a[1]).slice(0,12);
+  cobList.innerHTML = areasOrdenadas.map(([nombre, cnt]) => `
+    <div class="cob-bar-item">
+      <span class="cob-bar-nombre" title="${nombre}">${nombre}</span>
+      <div class="cob-bar-track">
+        <div class="cob-bar-fill" style="width:${Math.round(cnt/maxW*100)}%"></div>
+      </div>
+      <span class="cob-bar-count">${cnt}</span>
+    </div>
+  `).join('');
+
+  // ── Donut tipo ──
+  if (chartDonut) chartDonut.destroy();
+  const ctxD = document.getElementById('chartDonut').getContext('2d');
+  chartDonut = new Chart(ctxD, {
+    type: 'doughnut',
+    data: {
+      labels: ['Planta permanente','Contratado','Quincenal','No sabe'],
+      datasets: [{
+        data: [byTipo['Planta permanente'], byTipo['Contratado'], byTipo['Quincenal'], byTipo['No sabe']],
+        backgroundColor: ['#2E7D52','#2E6DA4','#C05621','#A0AEC0'],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      cutout: '60%',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 11 }, padding: 12, boxWidth: 12, color: '#4A5568' }
+        }
+      }
+    }
+  });
+
+  // ── Barras por área ──
+  if (chartBarras) chartBarras.destroy();
+  const areasBar = Object.entries(byArea).sort((a,b) => b[1]-a[1]);
+  // Desglosar por tipo por área
+  const byAreaTipo = {};
+  rows.forEach(r => {
+    const area = normalizarArea(r['Área'] || '') || null;
+    if (!area) return;
+    const tipo = r['Tipo contratación'] || 'No sabe';
+    if (!byAreaTipo[area]) byAreaTipo[area] = { 'Planta permanente':0, 'Contratado':0, 'Quincenal':0, 'No sabe':0 };
+    if (byAreaTipo[area][tipo] !== undefined) byAreaTipo[area][tipo]++;
+    else byAreaTipo[area]['No sabe']++;
+  });
+  const labelsBar = areasBar.map(([a]) => a.length > 18 ? a.slice(0,16)+'…' : a);
+  const ctxB = document.getElementById('chartBarras').getContext('2d');
+  chartBarras = new Chart(ctxB, {
+    type: 'bar',
+    data: {
+      labels: labelsBar,
+      datasets: [
+        { label: 'Planta', data: areasBar.map(([a]) => byAreaTipo[a]['Planta permanente']), backgroundColor: '#2E7D52', borderRadius: 3 },
+        { label: 'Contratado', data: areasBar.map(([a]) => byAreaTipo[a]['Contratado']), backgroundColor: '#2E6DA4', borderRadius: 3 },
+        { label: 'Quincenal', data: areasBar.map(([a]) => byAreaTipo[a]['Quincenal']), backgroundColor: '#C05621', borderRadius: 3 },
+        { label: 'No sabe', data: areasBar.map(([a]) => byAreaTipo[a]['No sabe']), backgroundColor: '#CBD5E0', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { font: { size: 10 }, color: '#718096', maxRotation: 35 },
+          grid: { display: false }
+        },
+        y: {
+          stacked: true,
+          ticks: { font: { size: 11 }, color: '#718096', stepSize: 1 },
+          grid: { color: '#EDF2F7' }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 11 }, padding: 12, boxWidth: 12, color: '#4A5568' }
+        }
+      }
+    }
+  });
+
+  // ── Tabla ──
+  filteredRows = [...rows];
+  renderTabla();
+
+  // ── Chips áreas ──
+  const chips = document.getElementById('chips-areas');
+  chips.innerHTML = TODAS_LAS_AREAS.map(a => {
+    const rel = areasRelevadas.includes(a);
+    return `<span class="chip ${rel?'relevada':''}" title="${rel ? (byArea[a]+' trabajadores') : 'Pendiente'}">${a}</span>`;
+  }).join('');
+
+  // ── Sin clasificar ──
+  const sinClasEl = document.getElementById('sin-clasificar-list');
+  const sinClasCard = document.getElementById('sin-clasificar-card');
+  const scEntries = Object.entries(sinClasificar).sort((a,b) => b[1]-a[1]);
+  if (scEntries.length === 0) {
+    sinClasCard.style.display = 'none';
+  } else {
+    sinClasCard.style.display = '';
+    sinClasEl.innerHTML = scEntries.map(([nombre, cnt]) =>
+      `<span class="chip" style="background:#FFF5F5;border-color:#FEB2B2;color:#742A2A;" title="${cnt} trabajador${cnt!==1?'es':''}">${nombre} (${cnt})</span>`
+    ).join('');
+  }
+}
+
+function filtrarTabla() {
+  const nombre = (document.getElementById('f-nombre')?.value || '').toLowerCase();
+  const area   = document.getElementById('f-area')?.value || '';
+  const tipo   = document.getElementById('f-tipo')?.value || '';
+  const desig  = document.getElementById('f-desig')?.value || '';
+
+  filteredRows = allRows.filter(r => {
+    if (nombre && !(r['Apellido y nombre']||'').toLowerCase().includes(nombre)) return false;
+    if (area   && normalizarArea(r['Área'] || '') !== area) return false;
+    if (tipo   && r['Tipo contratación'] !== tipo) return false;
+    if (desig  && r['Tiene designación'] !== desig) return false;
+    return true;
+  });
+
+  const count = document.getElementById('filtro-count');
+  if (count) count.textContent = `${filteredRows.length} de ${allRows.length} trabajadores`;
+  renderTabla();
+}
+
+function renderTabla() {
+  const tbody = document.getElementById('tabla-body');
+  if (!tbody) return;
+
+  const tipoBadge = {
+    'Planta permanente':'b-planta', 'Contratado':'b-contratado',
+    'Quincenal':'b-quincenal', 'No sabe':'b-ns'
+  };
+  const desigBadge = { 'Sí':'b-si', 'No':'b-no', 'No sabe':'b-nosabe' };
+
+  if (!filteredRows.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No hay trabajadores que coincidan con los filtros.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredRows.map(r => {
+    const tipo = r['Tipo contratación'] || 'No sabe';
+    const desig = r['Tiene designación'] || 'No sabe';
+    return `<tr>
+      <td>${r['Apellido y nombre'] || '—'}</td>
+      <td>${normalizarArea(r['Área'] || '') || (r['Área'] || '—')}</td>
+      <td><span class="badge ${tipoBadge[tipo]||'b-ns'}">${tipo}</span></td>
+      <td><span class="badge ${desigBadge[desig]||'b-nosabe'}">${desig}</span></td>
+      <td>${r['Función/Tarea'] || '—'}</td>
+      <td>${r['Turno'] || '—'}</td>
+      <td>${r['Días presencia'] || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Arrancar
+cargarDatos();
+</script>
+</body>
+</html>

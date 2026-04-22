@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relevamiento de Personal · Municipio de Esquina</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F4F6F9; color: #1a202c; min-height: 100vh; padding: 1.5rem 1rem 3rem; }
+
+  .page-wrap { max-width: 720px; margin: 0 auto; }
+
+  /* Header */
+  .header-band { background: #1B3A5C; padding: 18px 22px 16px; border-radius: 12px 12px 0 0; }
+  .header-band .sup { font-size: 11px; color: #8AAECC; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 3px; }
+  .header-band .tit { font-size: 19px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+  .header-band .sub { font-size: 12.5px; color: #8AAECC; }
+
+  /* Sections */
+  .section-card { background: #fff; border: 1px solid #E2E8F0; border-top: none; padding: 18px 22px; }
+  .section-card:last-of-type { border-radius: 0 0 12px 12px; }
+  .section-label { font-size: 11px; font-weight: 600; color: #718096; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDF2F7; }
+
+  /* Fields */
+  .field-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .field-row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .field-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .field-row.cols-1 { grid-template-columns: 1fr; }
+  .field label { font-size: 12.5px; color: #4A5568; display: block; margin-bottom: 4px; }
+  .field input, .field select, .field textarea {
+    width: 100%; font-size: 13.5px; font-family: inherit;
+    border: 1px solid #CBD5E0; border-radius: 7px;
+    padding: 8px 10px; background: #fff; color: #1a202c;
+    transition: border-color 0.15s;
+    appearance: none; -webkit-appearance: none;
+  }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23718096'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #2E6DA4; box-shadow: 0 0 0 3px rgba(46,109,164,0.12); }
+  .field textarea { height: 62px; resize: vertical; }
+  .req { color: #E53E3E; }
+  .otros-wrap { margin-top: 7px; display: none; }
+  .otros-wrap.visible { display: block; }
+
+  /* Upload zone */
+  .upload-zone { border: 1.5px dashed #CBD5E0; border-radius: 9px; padding: 18px; text-align: center; cursor: pointer; transition: all 0.15s; background: #F7FAFC; margin-bottom: 14px; }
+  .upload-zone:hover { border-color: #2E6DA4; background: #EBF4FF; }
+  .upload-zone.drag { border-color: #2E6DA4; background: #EBF4FF; }
+  .upload-icon { font-size: 24px; margin-bottom: 6px; }
+  .upload-zone p { font-size: 13px; color: #718096; margin: 0; }
+  .upload-zone p strong { color: #2E6DA4; }
+  .upload-hint { font-size: 11.5px; color: #A0AEC0; margin-top: 4px !important; }
+  #csv-file-input { display: none; }
+  .csv-preview { background: #F0FFF4; border: 1px solid #C6F6D5; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12.5px; color: #276749; display: none; }
+  .csv-preview.visible { display: block; }
+
+  /* Workers */
+  .worker-block { border: 1px solid #E2E8F0; border-radius: 9px; margin-bottom: 10px; overflow: hidden; }
+  .worker-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #F7FAFC; cursor: pointer; user-select: none; }
+  .worker-num { font-size: 12px; font-weight: 600; color: #718096; min-width: 22px; }
+  .worker-name { font-size: 13.5px; color: #2D3748; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .worker-body { padding: 14px; border-top: 1px solid #EDF2F7; }
+  .remove-btn { background: none; border: none; font-size: 18px; line-height: 1; cursor: pointer; color: #CBD5E0; padding: 0 2px; transition: color 0.12s; }
+  .remove-btn:hover { color: #E53E3E; }
+
+  /* Badge tipo */
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+  .badge-planta    { background: #C6F6D5; color: #22543D; }
+  .badge-contratado{ background: #BEE3F8; color: #1A365D; }
+  .badge-quincenal { background: #FEEBC8; color: #7B341E; }
+  .badge-ns        { background: #EDF2F7; color: #4A5568; }
+
+  /* Días */
+  .dias-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 5px; }
+  .dia-btn { font-size: 11.5px; font-weight: 500; text-align: center; padding: 6px 2px; border-radius: 5px; cursor: pointer; border: 1px solid #CBD5E0; background: #fff; color: #718096; transition: all 0.12s; user-select: none; }
+  .dia-btn.sel { background: #1B3A5C; color: #fff; border-color: #1B3A5C; }
+
+  /* Buttons */
+  .add-btn { width: 100%; padding: 10px; font-size: 13.5px; font-weight: 500; background: #F7FAFC; border: 1.5px dashed #CBD5E0; border-radius: 8px; cursor: pointer; color: #718096; transition: all 0.15s; font-family: inherit; }
+  .add-btn:hover { background: #EDF2F7; border-color: #A0AEC0; color: #4A5568; }
+
+  /* Footer bar */
+  .export-bar { background: #F7FAFC; border: 1px solid #E2E8F0; border-top: none; border-radius: 0 0 12px 12px; padding: 14px 22px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .summary-txt { font-size: 12.5px; color: #718096; flex: 1; min-width: 120px; }
+  .btn-ghost { background: #fff; color: #4A5568; border: 1px solid #CBD5E0; padding: 9px 16px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+  .btn-ghost:hover { background: #EDF2F7; }
+  .btn-primary { background: #1B3A5C; color: #fff; border: none; padding: 9px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+  .btn-primary:hover { background: #2E6DA4; }
+  .btn-apps { background: #2E7D52; color: #fff; border: none; padding: 9px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+  .btn-apps:hover { background: #276745; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1B3A5C; color: #fff; padding: 11px 20px; border-radius: 8px; font-size: 13.5px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #C53030; }
+  .toast.success { background: #276749; }
+
+  /* Divider */
+  .divider-or { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+  .divider-or span { font-size: 12px; color: #A0AEC0; white-space: nowrap; }
+  .divider-or::before, .divider-or::after { content: ''; flex: 1; height: 1px; background: #E2E8F0; }
+
+  .sheets-status { background: #F0FFF4; border: 1px solid #C6F6D5; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #276749; margin-bottom: 0; }
+
+  @media (max-width: 540px) {
+    .field-row.cols-2, .field-row.cols-3 { grid-template-columns: 1fr; }
+    .export-bar { flex-direction: column; align-items: stretch; }
+    .btn-ghost, .btn-primary, .btn-apps { text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <div class="header-band">
+    <p class="sup">Municipio de Esquina · RRHH / CEM</p>
+    <p class="tit">Relevamiento de personal por área</p>
+    <p class="sub">Completar un formulario por secretaría o dirección · Abril 2026</p>
+  </div>
+
+  <!-- DATOS DEL ÁREA -->
+  <div class="section-card">
+    <p class="section-label">Datos del área</p>
+    <div class="field-row cols-1">
+      <div class="field">
+        <label>Área / Dependencia <span class="req">*</span></label>
+        <select id="area" onchange="onAreaChange()">
+          <option value="">Seleccionar área...</option>
+          <option>Acción Social</option>
+          <option>Administración y Mantenimiento</option>
+          <option>Adultos Mayores</option>
+          <option>Asistencia Social</option>
+          <option>Bromatología e Higiene y Comercio</option>
+          <option>C.I.C.</option>
+          <option>Cementerio</option>
+          <option>Centro Asistencial</option>
+          <option>Centro Estadístico</option>
+          <option>Comercio</option>
+          <option>Compras y Suministros</option>
+          <option>Cultura</option>
+          <option>Defensa Civil</option>
+          <option>Deportes</option>
+          <option>Discapacidad</option>
+          <option>Educación</option>
+          <option>Egresos</option>
+          <option>Empleo</option>
+          <option>Familia, la Mujer y el Niño</option>
+          <option>Farmacia</option>
+          <option>Gobierno</option>
+          <option>Hacienda</option>
+          <option>Higiene Urbana</option>
+          <option>Informática</option>
+          <option>Ingresos</option>
+          <option>Inspección</option>
+          <option>Intendencia</option>
+          <option>Juventud</option>
+          <option>Laboratorio</option>
+          <option>Matadero</option>
+          <option>Medio Ambiente</option>
+          <option>Obras Públicas y Vivienda Municipal</option>
+          <option>Obras y Servicios Públicos</option>
+          <option>Parques y Paseos</option>
+          <option>Personal</option>
+          <option>Planificación Estratégica</option>
+          <option>Prensa</option>
+          <option>Producción</option>
+          <option>Salud Pública</option>
+          <option>Salud Pública y Acción Social</option>
+          <option>Secretaría General</option>
+          <option>Servicios Públicos</option>
+          <option>Tesorería</option>
+          <option>Tránsito</option>
+          <option>Turismo</option>
+          <option>Zoonosis</option>
+          <option value="__otros__">Otra (especificar)</option>
+        </select>
+        <div class="otros-wrap" id="otros-wrap">
+          <input type="text" id="area-otros" placeholder="Nombre del área...">
+        </div>
+      </div>
+    </div>
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>Responsable que completa <span class="req">*</span></label>
+        <input type="text" id="responsable" placeholder="Apellido y nombre">
+      </div>
+      <div class="field">
+        <label>Cargo</label>
+        <input type="text" id="cargo" placeholder="Ej: Director/a, Secretario/a">
+      </div>
+    </div>
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>Fecha <span class="req">*</span></label>
+        <input type="date" id="fecha">
+      </div>
+      <div class="field">
+        <label>Sede / Dirección física</label>
+        <input type="text" id="sede" placeholder="Ej: Palacio Municipal, Of. 3">
+      </div>
+    </div>
+  </div>
+
+  <!-- TRABAJADORES -->
+  <div class="section-card">
+    <p class="section-label">Trabajadores del área</p>
+
+    <!-- Carga por CSV -->
+    <div id="csv-preview" class="csv-preview"></div>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <div class="upload-icon">📂</div>
+      <p><strong>Subir CSV con empleados</strong></p>
+      <p>Arrastrá un archivo o hacé clic para seleccionar</p>
+      <p class="upload-hint">Columnas esperadas: Apellido y nombre · DNI · Tipo contratación · Función/Tarea (el resto es opcional)</p>
+    </div>
+    <input type="file" id="csv-file-input" accept=".csv" onchange="handleCSVFile(this)">
+
+    <div class="divider-or"><span>o cargá uno por uno</span></div>
+
+    <div id="workers-container"></div>
+    <button class="add-btn" onclick="addWorker()">+ Agregar trabajador manualmente</button>
+  </div>
+
+  <!-- OBSERVACIONES -->
+  <div class="section-card">
+    <p class="section-label">Observaciones generales del área</p>
+    <div class="field-row cols-1">
+      <div class="field">
+        <label>Novedades, situaciones irregulares o información relevante</label>
+        <textarea id="obs_general" placeholder="Ingrese observaciones generales si las hubiera..."></textarea>
+      </div>
+    </div>
+
+    <div class="sheets-status" style="margin-top:12px;">
+      ✓ Conectado a Google Sheets · CEM_Personal_Formulario Registro
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="export-bar">
+    <span class="summary-txt" id="summary-txt">0 trabajadores cargados</span>
+    <button class="btn-ghost" onclick="clearForm()">Limpiar todo</button>
+    <button class="btn-apps" id="btn-enviar" onclick="enviarSheets()">Enviar a Sheets ↑</button>
+    <button class="btn-primary" onclick="exportCSV()">Exportar CSV ↓</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Estado ────────────────────────────────────────────────────────────────
+let workers = [];
+let wid = 0;
+const DIAS = ['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
+const TIPO_LABELS = { planta:'Planta permanente', contratado:'Contratado', quincenal:'Quincenal', ns:'No sabe' };
+const TIPO_BADGE  = { planta:'badge-planta', contratado:'badge-contratado', quincenal:'badge-quincenal', ns:'badge-ns' };
+const TIPO_SHORT  = { planta:'Planta', contratado:'Contratado', quincenal:'Quincenal', ns:'No sabe' };
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbwJW_Xipq4_xIADDuMp_iVArdiUfGSNZAaxk7fTor6bjopUbQA5NcCtmsjOkgFle03Vkg/exec';
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+renderWorkers();
+updateSummary();
+
+// ── Área ──────────────────────────────────────────────────────────────────
+function onAreaChange() {
+  const v = document.getElementById('area').value;
+  document.getElementById('otros-wrap').classList.toggle('visible', v === '__otros__');
+}
+function getAreaValue() {
+  const v = document.getElementById('area').value;
+  return v === '__otros__' ? document.getElementById('area-otros').value.trim() : v;
+}
+
+// ── CSV upload ────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) parseCSVFile(file);
+}
+function handleCSVFile(input) {
+  if (input.files[0]) parseCSVFile(input.files[0]);
+}
+function parseCSVFile(file) {
+  if (!file.name.endsWith('.csv')) { showToast('Solo se aceptan archivos .csv', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result.replace(/^\uFEFF/, ''); // strip BOM
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { showToast('El CSV está vacío o solo tiene encabezado.', 'error'); return; }
+
+    // Detectar separador
+    const sep = lines[0].includes(';') ? ';' : ',';
+    const parseRow = row => {
+      const cols = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        if (ch === '"') { inQ = !inQ; continue; }
+        if (ch === sep && !inQ) { cols.push(cur.trim()); cur = ''; continue; }
+        cur += ch;
+      }
+      cols.push(cur.trim());
+      return cols;
+    };
+
+    const headers = parseRow(lines[0]).map(h => h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+    const idx = key => {
+      const aliases = {
+        nombre: ['apellido y nombre','nombre','apellido','trabajador','empleado'],
+        dni: ['dni','documento','nro documento'],
+        tipo: ['tipo contratacion','tipo','contratacion','modalidad'],
+        funcion: ['funcion','tarea','funcion/tarea','puesto','cargo'],
+        turno: ['turno','horario'],
+        obs: ['observaciones trabajador','observacion','obs','notas'],
+        designacion: ['tiene designacion','designacion','designacion formal'],
+      };
+      for (const [k, names] of Object.entries(aliases)) {
+        if (k === key) return names.findIndex(n => headers.some(h => h.includes(n))) !== -1
+          ? headers.findIndex(h => names.some(n => h.includes(n)))
+          : -1;
+      }
+      return -1;
+    };
+
+    const iNombre = idx('nombre');
+    if (iNombre === -1) { showToast('No se encontró columna de nombre/apellido en el CSV.', 'error'); return; }
+    const iDni = idx('dni'), iTipo = idx('tipo'), iFuncion = idx('funcion');
+    const iTurno = idx('turno'), iObs = idx('obs'), iDesig = idx('designacion');
+
+    const normTipo = raw => {
+      const r = (raw||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if (r.includes('planta')) return 'planta';
+      if (r.includes('contrat')) return 'contratado';
+      if (r.includes('quinc')) return 'quincenal';
+      return 'ns';
+    };
+    const normDesig = raw => {
+      const r = (raw||'').toLowerCase();
+      if (r === 'sí' || r === 'si' || r === 's') return 'si';
+      if (r === 'no' || r === 'n') return 'no';
+      return 'no_sabe';
+    };
+
+    let added = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseRow(lines[i]);
+      const nombre = iNombre >= 0 ? cols[iNombre] || '' : '';
+      if (!nombre) continue;
+      const id = ++wid;
+      workers.push({
+        id,
+        nombre,
+        dni:       iDni >= 0     ? cols[iDni] || ''     : '',
+        tipo:      iTipo >= 0    ? normTipo(cols[iTipo]) : 'ns',
+        funcion:   iFuncion >= 0 ? cols[iFuncion] || ''  : '',
+        turno:     iTurno >= 0   ? cols[iTurno] || ''    : '',
+        obs:       iObs >= 0     ? cols[iObs] || ''      : '',
+        designacion: iDesig >= 0 ? normDesig(cols[iDesig]) : 'no_sabe',
+        dias_presencia: [],
+      });
+      added++;
+    }
+
+    renderWorkers();
+    updateSummary();
+    const preview = document.getElementById('csv-preview');
+    preview.textContent = `✓ ${added} trabajador${added!==1?'es':''} importado${added!==1?'s':''} desde "${file.name}"`;
+    preview.classList.add('visible');
+    showToast(`${added} trabajadores importados del CSV`, 'success');
+    document.getElementById('csv-file-input').value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ── Workers ───────────────────────────────────────────────────────────────
+function addWorker() {
+  const id = ++wid;
+  workers.push({ id, nombre:'', dni:'', tipo:'ns', funcion:'', turno:'', dias_presencia:[], designacion:'no_sabe', estudios:'', cursa:'ns_cursa', obs:'' });
+  renderWorkers();
+  updateSummary();
+  setTimeout(() => {
+    const el = document.getElementById('wbody-'+id);
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 60);
+}
+function removeWorker(id) {
+  workers = workers.filter(w => w.id !== id);
+  renderWorkers();
+  updateSummary();
+}
+function getW(id) { return workers.find(w => w.id === id); }
+
+function renderWorkers() {
+  const c = document.getElementById('workers-container');
+  if (!workers.length) {
+    c.innerHTML = '<p style="font-size:13px;color:#A0AEC0;margin:0 0 14px;">Todavía no hay trabajadores cargados.</p>';
+    return;
+  }
+  c.innerHTML = workers.map((w, i) => `
+    <div class="worker-block" id="wb-${w.id}">
+      <div class="worker-header" onclick="toggleW(${w.id})">
+        <span class="worker-num">#${i+1}</span>
+        <span class="worker-name" id="wname-${w.id}">${w.nombre || 'Sin nombre'}</span>
+        <span class="badge ${TIPO_BADGE[w.tipo]}" id="wbadge-${w.id}">${TIPO_SHORT[w.tipo]}</span>
+        <button class="remove-btn" onclick="event.stopPropagation();removeWorker(${w.id})" title="Eliminar">×</button>
+      </div>
+      <div class="worker-body" id="wbody-${w.id}">
+        <div class="field-row cols-2">
+          <div class="field">
+            <label>Apellido y nombre <span class="req">*</span></label>
+            <input type="text" value="${esc(w.nombre)}" placeholder="Ej: Gómez, María" oninput="setW(${w.id},'nombre',this.value)">
+          </div>
+          <div class="field">
+            <label>DNI</label>
+            <input type="text" value="${esc(w.dni)}" placeholder="Ej: 28.450.123" oninput="setW(${w.id},'dni',this.value)">
+          </div>
+        </div>
+        <div class="field-row cols-2">
+          <div class="field">
+            <label>Tipo de contratación</label>
+            <select onchange="setW(${w.id},'tipo',this.value)">
+              <option value="ns" ${w.tipo==='ns'?'selected':''}>No sabe / No informa</option>
+              <option value="planta" ${w.tipo==='planta'?'selected':''}>Planta permanente</option>
+              <option value="contratado" ${w.tipo==='contratado'?'selected':''}>Contratado</option>
+              <option value="quincenal" ${w.tipo==='quincenal'?'selected':''}>Quincenal</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>¿Tiene designación formal?</label>
+            <select onchange="setW(${w.id},'designacion',this.value)">
+              <option value="no_sabe" ${w.designacion==='no_sabe'?'selected':''}>No sabe</option>
+              <option value="si" ${w.designacion==='si'?'selected':''}>Sí</option>
+              <option value="no" ${w.designacion==='no'?'selected':''}>No</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row cols-1">
+          <div class="field">
+            <label>Función / Tarea que realiza</label>
+            <input type="text" value="${esc(w.funcion)}" placeholder="Ej: Auxiliar administrativo, Mantenimiento, Chofer..." oninput="setW(${w.id},'funcion',this.value)">
+          </div>
+        </div>
+        <div class="field-row cols-2">
+          <div class="field">
+            <label>Estudios realizados</label>
+            <input type="text" value="${esc(w.estudios)}" placeholder="Ej: Primario completo, Secundario incompleto, Técnico..." oninput="setW(${w.id},'estudios',this.value)">
+          </div>
+          <div class="field">
+            <label>¿Cursa actualmente algún estudio?</label>
+            <select onchange="setW(${w.id},'cursa',this.value)">
+              <option value="ns_cursa" ${w.cursa==='ns_cursa'?'selected':''}>No sabe / No informa</option>
+              <option value="no" ${w.cursa==='no'?'selected':''}>No</option>
+              <option value="si_prim" ${w.cursa==='si_prim'?'selected':''}>Sí — Primario</option>
+              <option value="si_sec" ${w.cursa==='si_sec'?'selected':''}>Sí — Secundario</option>
+              <option value="si_tec" ${w.cursa==='si_tec'?'selected':''}>Sí — Terciario / Técnico</option>
+              <option value="si_uni" ${w.cursa==='si_uni'?'selected':''}>Sí — Universitario</option>
+              <option value="si_otro" ${w.cursa==='si_otro'?'selected':''}>Sí — Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row cols-2">
+          <div class="field">
+            <label>Turno / Horario</label>
+            <select onchange="setW(${w.id},'turno',this.value)">
+              <option value="" ${!w.turno?'selected':''}>Seleccionar...</option>
+              <option value="Mañana (7–13hs)" ${w.turno==='Mañana (7–13hs)'?'selected':''}>Mañana (7–13hs)</option>
+              <option value="Tarde (13–19hs)" ${w.turno==='Tarde (13–19hs)'?'selected':''}>Tarde (13–19hs)</option>
+              <option value="Full time" ${w.turno==='Full time'?'selected':''}>Full time</option>
+              <option value="Irregular" ${w.turno==='Irregular'?'selected':''}>Irregular</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Días de presencia habitual</label>
+            <div class="dias-grid" id="dias-${w.id}">
+              ${DIAS.map(d => `<div class="dia-btn${w.dias_presencia.includes(d)?' sel':''}" onclick="toggleDia(${w.id},'${d}')">${d}</div>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="field-row cols-1">
+          <div class="field">
+            <label>Observaciones del trabajador</label>
+            <textarea placeholder="Situación particular, datos a verificar..." oninput="setW(${w.id},'obs',this.value)">${esc(w.obs)}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(v) { return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function toggleW(id) {
+  const b = document.getElementById('wbody-'+id);
+  if (b) b.style.display = b.style.display === 'none' ? '' : 'none';
+}
+function setW(id, field, val) {
+  const w = getW(id); if (!w) return;
+  w[field] = val;
+  if (field === 'nombre') { const el = document.getElementById('wname-'+id); if(el) el.textContent = val||'Sin nombre'; }
+  if (field === 'tipo') {
+    const el = document.getElementById('wbadge-'+id);
+    if(el) { el.className = 'badge '+TIPO_BADGE[val]; el.textContent = TIPO_SHORT[val]; }
+  }
+  updateSummary();
+}
+function toggleDia(id, dia) {
+  const w = getW(id); if (!w) return;
+  const idx = w.dias_presencia.indexOf(dia);
+  if (idx >= 0) w.dias_presencia.splice(idx, 1); else w.dias_presencia.push(dia);
+  document.querySelectorAll(`#dias-${id} .dia-btn`).forEach((btn, i) => btn.classList.toggle('sel', w.dias_presencia.includes(DIAS[i])));
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────
+function updateSummary() {
+  const n = workers.length;
+  const q = workers.filter(w => w.tipo === 'quincenal').length;
+  const c = workers.filter(w => w.tipo === 'contratado').length;
+  const p = workers.filter(w => w.tipo === 'planta').length;
+  document.getElementById('summary-txt').textContent =
+    n === 0 ? '0 trabajadores cargados'
+    : `${n} trabajador${n!==1?'es':''} · ${p} planta · ${c} contratado${c!==1?'s':''} · ${q} quincenal${q!==1?'es':''}`;
+}
+
+// ── Clear ─────────────────────────────────────────────────────────────────
+function clearForm() {
+  if (!confirm('¿Limpiar el formulario completo? Se perderán todos los datos cargados.')) return;
+  document.getElementById('area').value = '';
+  document.getElementById('otros-wrap').classList.remove('visible');
+  ['area-otros','responsable','cargo','sede','obs_general'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('csv-preview').classList.remove('visible');
+  workers = []; wid = 0;
+  renderWorkers(); updateSummary();
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────
+function exportCSV() {
+  const area = getAreaValue();
+  const resp = document.getElementById('responsable').value.trim();
+  const cargo= document.getElementById('cargo').value.trim();
+  const fech = document.getElementById('fecha').value;
+  const sede = document.getElementById('sede').value.trim();
+  const obsG = document.getElementById('obs_general').value.trim();
+
+  if (!area) { showToast('Seleccioná o ingresá el área.', 'error'); return; }
+  if (!resp)  { showToast('Ingresá el nombre del responsable.', 'error'); return; }
+  if (!workers.length) { showToast('Agregá al menos un trabajador.', 'error'); return; }
+
+  const header = ['Área','Responsable','Cargo','Fecha','Sede','Apellido y nombre','DNI','Tipo contratación','Tiene designación','Función/Tarea','Estudios realizados','Cursa actualmente','Turno','Días presencia','Observaciones trabajador','Observaciones generales'];
+  const rows = workers.map(w => [
+    area, resp, cargo, fech, sede,
+    w.nombre, w.dni, TIPO_LABELS[w.tipo],
+    {si:'Sí', no:'No', no_sabe:'No sabe'}[w.designacion],
+    w.funcion, w.estudios,
+    {ns_cursa:'No informa', no:'No', si_prim:'Sí - Primario', si_sec:'Sí - Secundario', si_tec:'Sí - Terciario/Técnico', si_uni:'Sí - Universitario', si_otro:'Sí - Otro'}[w.cursa] || '',
+    w.turno, w.dias_presencia.join('-'),
+    w.obs, obsG
+  ]);
+
+  const e2 = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const csv = [header, ...rows].map(r => r.map(e2).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `relevamiento_${area.replace(/\s+/g,'_').toLowerCase()}_${fech||'sin_fecha'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado correctamente.', 'success');
+}
+
+// ── Enviar a Sheets ───────────────────────────────────────────────────────
+async function enviarSheets() {
+  const area = getAreaValue();
+  const resp = document.getElementById('responsable').value.trim();
+  const cargo= document.getElementById('cargo').value.trim();
+  const fech = document.getElementById('fecha').value;
+  const sede = document.getElementById('sede').value.trim();
+  const obsG = document.getElementById('obs_general').value.trim();
+
+  if (!area) { showToast('Seleccioná o ingresá el área.', 'error'); return; }
+  if (!resp)  { showToast('Ingresá el nombre del responsable.', 'error'); return; }
+  if (!workers.length) { showToast('Agregá al menos un trabajador.', 'error'); return; }
+
+  const btn = document.getElementById('btn-enviar');
+  btn.textContent = 'Enviando...';
+  btn.disabled = true;
+
+  const payload = workers.map(w => ({
+    area, responsable: resp, cargo, fecha: fech, sede,
+    nombre: w.nombre, dni: w.dni,
+    tipo: TIPO_LABELS[w.tipo],
+    designacion: {si:'Sí', no:'No', no_sabe:'No sabe'}[w.designacion],
+    funcion: w.funcion, estudios: w.estudios, cursa: ({ns_cursa:'No informa', no:'No', si_prim:'Sí - Primario', si_sec:'Sí - Secundario', si_tec:'Sí - Terciario/Técnico', si_uni:'Sí - Universitario', si_otro:'Sí - Otro'}[w.cursa] || ''), turno: w.turno,
+    dias: w.dias_presencia.join('-'),
+    obs: w.obs, obs_general: obsG
+  }));
+
+  try {
+    const res = await fetch(APPS_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`${data.filas} fila${data.filas!==1?'s':''} enviada${data.filas!==1?'s':''} a Google Sheets.`, 'success');
+    } else {
+      showToast('El servidor respondió con error.', 'error');
+    }
+  } catch(err) {
+    showToast('Error de conexión con Google Sheets.', 'error');
+  } finally {
+    btn.textContent = 'Enviar a Sheets ↑';
+    btn.disabled = false;
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' '+type : '') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
